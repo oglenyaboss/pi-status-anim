@@ -1,0 +1,21 @@
+{
+  "name": "pi-status-anim",
+  "version": "0.1.0",
+  "description": "Animated working status row for the pi coding agent: phased verbs, glyph animation, token counter, stall feedback, easter eggs.",
+  "type": "module",
+  "pi": {
+    "extensions": [
+      "./src/index.ts"
+    ]
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "selfcheck": "node --experimental-strip-types scripts/selfcheck.ts",
+    "runtime-sim": "node --experimental-strip-types scripts/runtime-sim.ts"
+  },
+  "devDependencies": {
+    "@earendil-works/pi-coding-agent": "*",
+    "@types/node": "24.12.4"
+  },
+  "license": "MIT"
+}
