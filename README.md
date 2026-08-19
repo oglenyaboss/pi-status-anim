@@ -65,7 +65,8 @@ Animated row in action — click to watch (placeholders until real captures are 
 ## Install
 
 ```bash
-pi install <this-repository-url>
+pi install npm:pi-status-anim                          # from the npm registry
+pi install git:github.com/oglenyaboss/pi-status-anim   # or directly from GitHub
 ```
 
 No runtime dependencies: the only import from the pi package is `import type`

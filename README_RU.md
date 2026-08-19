@@ -67,7 +67,8 @@
 ## Установка
 
 ```bash
-pi install <url-репозитория>
+pi install npm:pi-status-anim                          # из npm-реестра
+pi install git:github.com/oglenyaboss/pi-status-anim   # или напрямую из GitHub
 ```
 
 Никаких runtime-зависимостей: единственный импорт из пакета pi — `import
