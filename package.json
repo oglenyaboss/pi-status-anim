@@ -1,8 +1,12 @@
 {
   "name": "pi-status-anim",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Animated working status row for the pi coding agent: phased verbs, glyph animation, token counter, stall feedback, easter eggs.",
-  "keywords": ["pi-package", "pi-coding-agent", "tui"],
+  "keywords": [
+    "pi-package",
+    "pi-coding-agent",
+    "tui"
+  ],
   "repository": {
     "type": "git",
     "url": "https://github.com/oglenyaboss/pi-status-anim.git"
@@ -15,11 +19,11 @@
     "image": "https://raw.githubusercontent.com/oglenyaboss/pi-status-anim/main/docs/screenshots/thinking.svg"
   },
   "scripts": {
-	"typecheck": "tsc --noEmit",
-	"selfcheck": "node --experimental-strip-types scripts/selfcheck.ts",
-	"runtime-sim": "node --experimental-strip-types scripts/runtime-sim.ts",
-	"log-smoke": "node --experimental-strip-types scripts/log-smoke.ts",
-	"test": "npm run typecheck && npm run selfcheck && npm run log-smoke && npm run runtime-sim"
+    "typecheck": "tsc --noEmit",
+    "selfcheck": "node --experimental-strip-types scripts/selfcheck.ts",
+    "runtime-sim": "node --experimental-strip-types scripts/runtime-sim.ts",
+    "log-smoke": "node --experimental-strip-types scripts/log-smoke.ts",
+    "test": "npm run typecheck && npm run selfcheck && npm run log-smoke && npm run runtime-sim"
   },
   "devDependencies": {
     "@earendil-works/pi-coding-agent": "*",
