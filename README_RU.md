@@ -6,12 +6,45 @@
 строка целиком — глаголы, глиф, токены, таймер, пасхалки, stall-фидбек —
 живёт здесь.
 
+## Скриншоты
+
+Анимированная строка в действии — кликните, чтобы посмотреть (плейсхолдеры до добавления реальных скриншотов):
+
+<table>
+  <tr>
+    <td align="center">
+      <img alt="Requesting — ждём первый токен" src="docs/screenshots/requesting.svg" width="420">
+      <br><em>requesting</em>
+    </td>
+    <td align="center">
+      <img alt="Thinking — счётчик токенов и таймер" src="docs/screenshots/thinking.svg" width="420">
+      <br><em>thinking</em>
+    </td>
+  </tr>
+  <tr>
+    <td align="center">
+      <img alt="Tool — bash с брайль-глифом" src="docs/screenshots/tool.svg" width="420">
+      <br><em>tool</em>
+    </td>
+    <td align="center">
+      <img alt="Stalled — красный фейд и слово-стадия" src="docs/screenshots/stall.svg" width="420">
+      <br><em>stalled</em>
+    </td>
+  </tr>
+</table>
+
 ## Возможности
 
 - **Глаголы по фазам** — глагол меняется только при смене фазы цикла
   (`requesting → thinking → responding`); вызовы инструментов его не трогают.
 - **Анимация глифа по фазам** — бегущая точка при запросе, мягкий набор звёзд
   при размышлении/ответе, брайль во время работы инструментов.
+- **Робот-аватар** (`robotAvatar`) — вместо абстрактных глифов анимированное
+  лицо робота шириной 5 колонок во всех состояниях: моргает в ожидании,
+  думает (глаза вверх, медленный пульс «мозга»), молотит быстрым пульсом
+  во время тулов, улыбается при ответе, реагирует на результат тула
+  (рад/огорчён 2 секунды, огорчение красным), засыпает при stall и
+  радуется в конце. Выключен по умолчанию.
 - **Счётчик токенов** — полный снимок контента пересчитывается на каждом
   обновлении (никакого накопления), показывается как `↓ 1.2k` с опциональной
   скоростью `· 42/s` и плавным одометром.
@@ -46,6 +79,11 @@ type` (стирается в рантайме). `/reload` пересоздаёт
 Все опции — в `~/.pi/agent/settings.json`, ключ `statusAnim`. Ниже значения
 по умолчанию.
 
+Настраивать можно прямо из TUI: `/statusanim` открывает интерактивное меню
+всех опций, а `/statusanim <ключ> <значение>` ставит одну опцию без меню
+(например `/statusanim robotAvatar off`). Tab дополняет ключи и `on|off`.
+Изменения пишутся в `settings.json`; применить их — `/reload`.
+
 ```jsonc
 {
   "statusAnim": {
@@ -57,7 +95,7 @@ type` (стирается в рантайме). `/reload` пересоздаёт
     "tokenCounter": true,
     "tokenAfterMs": 3000,     // когда появляются токены (защита от мерцания)
     "tokenRate": true,        // показывать tok/s
-    "effortSuffix": "with high effort",
+    "effortSuffix": "",        // пусто = авто из уровня thinking
     "stallAfterMs": 3000,
     "stallTiers": true,
     "modelEggs": true,
@@ -69,6 +107,7 @@ type` (стирается в рантайме). `/reload` пересоздаёт
     "toolDetail": true,       // "(grep · 247 files)", если в args есть счётчик
     "queueHint": true,        // "(+ queued)"
     "phaseGlyphs": true,      // наборы глифов по фазам
+    "robotAvatar": false,     // лицо робота во всех фазах (выключен по умолчанию)
     "animChance": 0.25,       // вероятность wave/breath на цикл
     "animAfterMs": 1500,
     "labelActive": "∴ Thinking…",
@@ -81,14 +120,18 @@ type` (стирается в рантайме). `/reload` пересоздаёт
 
 ```bash
 npm install          # devDependency (только типы для typecheck)
+npm test             # typecheck + selfcheck + log-smoke + runtime-sim
 npm run typecheck    # tsc --noEmit
 npm run selfcheck    # проверки чистых модулей (width-gating, FSM, stall)
+npm run runtime-sim  # сквозной прогон на фейковом pi API
+npm run log-smoke    # смоук-тест отладочного логгера
 ```
+
+CI гоняет тот же набор на каждый push (`.github/workflows/ci.yml`).
 
 ## Примечания
 
-- Текст подсказки прерывания фиксирован (`Ctrl+C`): реестр клавиш pi не
-  доступен расширениям, поэтому подсказка не следует за пользовательскими
+- Текст подсказки прерывания фиксирован (`escape`): реестр клавиш pi не
   биндингами.
 - Очередь показывается как `(+ queued)` — API расширений отдаёт только факт
   наличия ожидающих сообщений, без количества.

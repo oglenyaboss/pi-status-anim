@@ -6,7 +6,7 @@
  * `/reload` recreates the extension and re-reads the config; there is no
  * hot-reload of config.
  */
-import { readFileSync } from "node:fs";
+import { readFileSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 
@@ -24,7 +24,12 @@ export interface StatusAnimConfig {
 	tokenAfterMs: number;
 	/** Append the tokens/sec rate to the token suffix. */
 	tokenRate: boolean;
-	/** Wording for the thinking marker, e.g. "with high effort". */
+	/**
+	 * Wording appended after "thinking" in the marker, e.g. "hard" →
+	 * `(thinking hard…)`. Empty string = derive automatically from the live
+	 * `thinkingLevel` (off/minimal/low/medium/high/xhigh/max). Any non-empty
+	 * value overrides the automatic wording.
+	 */
 	effortSuffix: string;
 	/** No-token/no-tool threshold before the row is considered stalled. */
 	stallAfterMs: number;
@@ -41,6 +46,10 @@ export interface StatusAnimConfig {
 	queueHint: boolean;
 	/** Per-phase glyph sets; off = one set for all non-tool phases. */
 	phaseGlyphs: boolean;
+	/** Animated robot face across all phases instead of abstract glyphs. */
+	robotAvatar: boolean;
+	/** Show a final tokens/elapsed notification when the agent-loop ends. */
+	summary: boolean;
 	/** Probability of wave/breath replacing the glimmer per agent-loop. */
 	animChance: number;
 	/** Wave/breath start only after this many ms of the agent-loop. */
@@ -60,7 +69,7 @@ const DEFAULTS: StatusAnimConfig = {
 	tokenCounter: true,
 	tokenAfterMs: 3000,
 	tokenRate: true,
-	effortSuffix: "with high effort",
+	effortSuffix: "",
 	stallAfterMs: 3000,
 	stallTiers: true,
 	modelEggs: true,
@@ -72,6 +81,8 @@ const DEFAULTS: StatusAnimConfig = {
 	toolDetail: true,
 	queueHint: true,
 	phaseGlyphs: true,
+	robotAvatar: false,
+	summary: true,
 	animChance: 0.25,
 	animAfterMs: 1500,
 	labelActive: "∴ Thinking…",
@@ -102,10 +113,31 @@ function expandTilde(path: string): string {
 	return path;
 }
 
-function settingsPath(): string {
+/** Path of the settings file this extension reads (and writes via updateConfig). */
+export function settingsPath(): string {
 	const envDir = process.env.PI_CODING_AGENT_DIR;
 	const base = envDir ? expandTilde(envDir) : join(homedir(), ".pi", "agent");
 	return join(base, "settings.json");
+}
+
+/**
+ * Merge a patch into the `statusAnim` section of settings.json, preserving
+ * every other key and section. Returns false when the file cannot be read
+ * or written. Used by the `/statusanim` command.
+ */
+export function updateConfig(patch: Record<string, unknown>): boolean {
+	try {
+		const raw = readSettings() ?? {};
+		const section =
+			typeof raw["statusAnim"] === "object" && raw["statusAnim"] !== null
+				? (raw["statusAnim"] as Record<string, unknown>)
+				: {};
+		raw["statusAnim"] = { ...section, ...patch };
+		writeFileSync(settingsPath(), JSON.stringify(raw, null, 2) + "\n", "utf8");
+		return true;
+	} catch {
+		return false;
+	}
 }
 
 function readSettings(): Record<string, unknown> | null {
@@ -144,6 +176,8 @@ export function loadConfig(): StatusAnimConfig {
 		toolDetail: bool(s.toolDetail, DEFAULTS.toolDetail),
 		queueHint: bool(s.queueHint, DEFAULTS.queueHint),
 		phaseGlyphs: bool(s.phaseGlyphs, DEFAULTS.phaseGlyphs),
+		robotAvatar: bool(s.robotAvatar, DEFAULTS.robotAvatar),
+		summary: bool(s.summary, DEFAULTS.summary),
 		animChance: num(s.animChance, DEFAULTS.animChance, 0, 1),
 		animAfterMs: num(s.animAfterMs, DEFAULTS.animAfterMs, 0, 60000),
 		labelActive: str(s.labelActive, DEFAULTS.labelActive),

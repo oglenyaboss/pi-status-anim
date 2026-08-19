@@ -50,12 +50,20 @@ export function composeRow(input: RowInput): string {
 	}
 
 	let tail = kept;
-	if (!input.marker && kept.length === 0 && input.hint) {
-		if (displayWidth(input.hint.plain) + 1 <= available) tail = [input.hint];
+	// The interrupt hint is shown as a lowest-priority tail when there is no
+	// phase marker (thinking/thought) — i.e. while waiting or streaming plain
+	// content — and is the first thing dropped under width pressure.
+	if (!input.marker && input.hint) {
+		const hw = displayWidth(input.hint.plain) + 1;
+		if (used + hw <= available) tail = [...tail, input.hint];
 	}
 
 	const parts = input.marker ? [input.marker, ...tail] : tail;
-	return input.glyph + " " + input.verbRendered + parts.map((p) => " " + p.rendered).join("");
+	// Note: the glyph is NOT prepended here. pi's Loader prepends its own
+	// `indicator` (the current spinner frame from setWorkingIndicator) in
+	// front of this message, so including the glyph would double it. The glyph
+	// width is still accounted for in `available` above.
+	return input.verbRendered + parts.map((p) => " " + p.rendered).join("");
 }
 
 /** Visible width of a string: ANSI stripped, wide chars counted as 2. */
@@ -85,10 +93,14 @@ function charWidth(cp: number): number {
 	return 1;
 }
 
-/** Smooth odometer: eases `displayed` toward `target` without overshooting. */
+/** Smooth odometer: eases `displayed` toward `target` without overshooting.
+ * Rises smoothly (animation); snaps down instantly when the target drops
+ * (e.g. a new turn within the same agent-loop resets `responseLength` to the
+ * new message's length — animating downward would show a misleading
+ * countdown). */
 export function stepOdometer(displayed: number, target: number): number {
 	const gap = target - displayed;
-	if (gap <= 0) return displayed;
+	if (gap <= 0) return target; // snap down immediately when target drops
 	const step = gap < 70 ? 3 : gap < 200 ? Math.ceil(gap * 0.15) : 50;
 	const next = displayed + step;
 	return next > target ? target : next;

@@ -6,12 +6,45 @@ per phase, an animated glyph, live token counts, stall feedback, and a few
 easter eggs. The whole row — verbs, glyph, tokens, timer, easter eggs, stall
 feedback — lives here.
 
+## Screenshots
+
+Animated row in action — click to watch (placeholders until real captures are added):
+
+<table>
+  <tr>
+    <td align="center">
+      <img alt="Requesting — waiting for the first token" src="docs/screenshots/requesting.svg" width="420">
+      <br><em>requesting</em>
+    </td>
+    <td align="center">
+      <img alt="Thinking — token counter and timer" src="docs/screenshots/thinking.svg" width="420">
+      <br><em>thinking</em>
+    </td>
+  </tr>
+  <tr>
+    <td align="center">
+      <img alt="Tool — running bash with braille glyph" src="docs/screenshots/tool.svg" width="420">
+      <br><em>tool</em>
+    </td>
+    <td align="center">
+      <img alt="Stalled — red fade and tier word" src="docs/screenshots/stall.svg" width="420">
+      <br><em>stalled</em>
+    </td>
+  </tr>
+</table>
+
 ## Features
 
 - **Phased verbs** — the verb changes only when the agent-loop moves between
   phases (`requesting → thinking → responding`); tool calls never change it.
 - **Per-phase glyph animation** — a travelling dot while requesting, a soft
   star set while thinking/responding, braille while tools run.
+- **Robot avatar** (`robotAvatar`) — instead of abstract glyphs, a 5-cell
+  animated robot face across every state: it blinks while waiting, rolls its
+  eyes up with a slow brain pulse while thinking, works with a fast brain
+  pulse while tools run, smiles while responding, reacts to tool results
+  (happy / sad for 2s, sad in red), falls asleep when stalled, and is
+  pleased when done. Off by default.
 - **Token counter** — the full content snapshot is recomputed on every
   update (no accumulation), shown as `↓ 1.2k` with an optional `· 42/s` rate
   and a smooth odometer.
@@ -44,6 +77,11 @@ config; there is no hot reload.
 All options live in `~/.pi/agent/settings.json` under the `statusAnim` key.
 Defaults are shown.
 
+You can also configure from the TUI: `/statusanim` opens an interactive menu
+of every option, and `/statusanim <key> <value>` sets one option directly
+(e.g. `/statusanim robotAvatar on`). Tab completes option keys and `on|off`.
+Changes are written to `settings.json`; run `/reload` to apply them.
+
 ```jsonc
 {
   "statusAnim": {
@@ -55,7 +93,7 @@ Defaults are shown.
     "tokenCounter": true,
     "tokenAfterMs": 3000,     // when tokens appear (flicker guard)
     "tokenRate": true,        // show tok/s
-    "effortSuffix": "with high effort",
+    "effortSuffix": "",        // empty = auto from thinking level
     "stallAfterMs": 3000,
     "stallTiers": true,
     "modelEggs": true,
@@ -67,6 +105,7 @@ Defaults are shown.
     "toolDetail": true,       // "(grep · 247 files)" when args carry a count
     "queueHint": true,        // "(+ queued)"
     "phaseGlyphs": true,      // per-phase glyph sets
+    "robotAvatar": false,     // robot face across all phases (off by default)
     "animChance": 0.25,       // probability of wave/breath per agent-loop
     "animAfterMs": 1500,
     "labelActive": "∴ Thinking…",
@@ -79,13 +118,18 @@ Defaults are shown.
 
 ```bash
 npm install          # devDependency only (types for typecheck)
+npm test             # typecheck + selfcheck + log-smoke + runtime-sim
 npm run typecheck    # tsc --noEmit
 npm run selfcheck    # pure-module checks (width gating, FSM, stall math)
+npm run runtime-sim  # end-to-end sim against a fake pi API
+npm run log-smoke    # debug-logger smoke test
 ```
+
+CI runs the same suite on every push (`.github/workflows/ci.yml`).
 
 ## Notes
 
-- The interrupt hint text is fixed (`Ctrl+C`): pi's keybinding registry is
+- The interrupt hint text is fixed (`escape`): pi's keybinding registry is
   not exposed to the extension API, so the hint cannot follow custom
   keybindings.
 - The queue hint shows `(+ queued)` — the extension API exposes only whether

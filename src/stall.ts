@@ -36,7 +36,10 @@ export function shouldStall(
 ): boolean {
 	if (stallAfterMs <= 0) return false;
 	if (toolCount > 0) return false;
-	if (phase !== "requesting" && phase !== "thinking" && phase !== "responding" && phase !== "tool") {
+	// `requesting` is the pre-token wait for the first response byte. API
+	// latency there is normal (seconds on reasoning models) and `responseLength`
+	// is always 0, so stall would fire on any first-byte delay — a false alarm.
+	if (phase !== "thinking" && phase !== "responding" && phase !== "tool") {
 		return false;
 	}
 	return now - lastActivity > stallAfterMs;

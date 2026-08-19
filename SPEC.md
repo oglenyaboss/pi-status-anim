@@ -85,6 +85,17 @@ Transition rules:
 - On phase entry, reset per-phase timers (`phaseStart`), token baseline, glimmer phase.
 - `done` is implicit at `message_end`/`agent_end`.
 
+**`robotAvatar` (config) replaces the glyph sets.** All abstract sets above are
+swapped for one 5-cell robot face per state: `requesting` blinks (`ROBOT_WAIT_`),
+`thinking` rolls its eyes up with a slow brain pulse (`ROBOT_THINK_`),
+`responding` smiles and blinks (`ROBOT_RESPOND_`), `tool` works with a fast
+brain pulse (`ROBOT_TOOL_`), `done` is pleased (`ROBOT_DONE_`). Stalled: the
+robot falls asleep (breathing `ROBOT_SLEEP_`, fading red). Right after the last
+parallel tool ends, a 2s reaction overrides the phase face: `[◕‿◕]` on success,
+`[◉⌓◉]` in `error` color on failure; a new `tool_execution_start` cancels it.
+Each robot set carries its own Loader `intervalMs` (thinking slow, tools fast);
+under `reducedMotion` a static `[◉_◉]` is shown.
+
 ## 5. Row rendering & width-gating
 
 `composeRow(state, columns) → string` is a pure function:
@@ -96,11 +107,11 @@ Suffix parts, in **priority order** (highest first), progressively dropped when 
 2. **timer** — `Ns` after `timerAfterMs`.
 3. **tokens** — `↓ 1.2k` after `tokenAfterMs`; `· 42/s` rate appended if `tokenRate`.
 4. **tool detail** — `(running bash)` while a tool is active; `(grep · 247 files)` if `toolDetail` and args carry a count.
-5. **queue hint** — `(+2 queued)` if `ctx.hasPendingMessages()` and `queueHint`.
+5. **queue hint** — `(+ queued)` if `ctx.hasPendingMessages()` and `queueHint`. (The API exposes only a boolean, not a count — no number is shown.)
 
 The verb and the phase marker (1) are never dropped. Anything below the cutoff is hidden entirely (no partial). This prevents line wrap → flicker.
 
-**Restore the interrupt hint.** When the extension owns the row, append ` (<interrupt key> to interrupt)` to the suffix at lowest priority only when nothing else is shown (bug 6 fix). Determine the key text from pi's keybinding registry if accessible, else hardcode `Ctrl+C`.
+**Restore the interrupt hint.** When the extension owns the row, append ` (<interrupt key> to interrupt)` to the suffix at lowest priority only when nothing else is shown (bug 6 fix). pi's `app.interrupt` defaults to **`escape`** (verified in `dist/core/keybindings.js`); hardcode `escape` — the keybinding registry is not exposed to extensions.
 
 ## 6. Stall model & liveliness
 
@@ -136,20 +147,38 @@ Layered, all disabled under `reducedMotion` (static `●` glyph + plain text the
    - Only active after `animAfterMs` (default `1500`) so short replies don't animate.
 3. **Thinking shimmer (suffix only).** The `(thinking…)` suffix text pulses color via sine, period 2s, starting after 3s of thinking. Endpoints from theme.
 
+**Robot avatar.** With `robotAvatar` (default on), the per-phase glyph sets are
+replaced by a 5-cell animated robot face per state (see §4). All frames of all
+sets are exactly 5 cells wide (enforced by selfcheck), so the row never jumps
+when a set swaps. The robot is a character, not a spinner: blinking, thinking
+and working reads are distinct, and the stall face (asleep) and tool-result
+reactions (happy/sad, 2s) carry real state.
+
 Animation clock: a single extension interval at ~50ms drives all text animation, calling `setWorkingMessage` each tick with the recomposed string. The glyph is animated by pi's own `Loader` interval (pass `frames`, leave `intervalMs` default unless configured).
 
 ## 8. Token counter (fixes bug 9)
 
-**Correct accounting:** `message_update` carries the **full** content snapshot, not a delta. Recompute the current total each update — do **not** accumulate.
+**Correct accounting:** `message_update` carries the **full** content snapshot, not a delta. Recompute the current message total each update — do **not** accumulate within a message.
 
 ```
 responseLength = sum over content blocks of (block.type === "thinking" ? block.thinking.length
                   : block.type === "text" ? block.text.length : 0)
 ```
-- `tokens = round(responseLength / 4)` (heuristic, same as reference).
-- Shown after `tokenAfterMs` (default `3000`, bug-flicker fix).
-- **Smooth odometer:** `displayedTokens` eases toward `tokens` exponentially (gap < 70 → +3; < 200 → +ceil(gap·0.15); else +50), never overshooting.
-- Rate `tok/s` (if `tokenRate`): delta of `responseLength` over the last ~1s window, `÷4`.
+- **Scoped to the agent-loop (§5):** `prevTurnLen` accumulates the length of
+  each completed turn at `message_end`; `tokens = round((prevTurnLen +
+  responseLength) / 4)`. The counter is monotonic across turns within one
+  agent-loop — it does not reset to 0 between turns and does not disappear
+  during inter-turn gaps (tools, `done`).
+- Shown after `tokenAfterMs` (default `3000`, bug-flicker fix), gated on
+  `tokens > 0` (not `responseLength`) so it persists through inter-turn gaps.
+- **Smooth odometer:** `displayedTokens` eases toward `tokens` when rising
+  (gap < 70 → +3; < 200 → +ceil(gap·0.15); else +50), snaps down instantly
+  when the target drops (a new message shorter than the accumulated total).
+- Rate `tok/s` (if `tokenRate`): delta of the loop total over the last ~1s
+  window, `÷4`.
+- **Final summary** (`summary` config, default on): at `agent_end`, fire
+  `ctx.ui.notify("<tokens> tokens · <Ns>", "info")` with the loop total and
+  wall time — a transient end-of-turn stat line like Claude Code's.
 
 ## 9. Easter eggs (seed the `requesting` verb)
 
@@ -182,8 +211,9 @@ Same probabilistic seeding as today, but only at `requesting` phase entry (not r
     "funFacts": true,
     "anxietyGradient": true,
     "reducedMotion": false,
+    "robotAvatar": true,       // animated robot face across all phases
     "toolDetail": true,       // detailed tool suffix
-    "queueHint": true,        // (+N queued)
+    "queueHint": true,        // (+ queued) — bool API, no count
     "phaseGlyphs": true,      // per-phase glyph sets
     "animChance": 0.25,       // probability of wave/breath per agent-loop
     "animAfterMs": 1500,
@@ -193,6 +223,7 @@ Same probabilistic seeding as today, but only at `requesting` phase entry (not r
 }
 ```
 - Config is loaded **once** at extension load. `/reload` recreates the extension and re-reads config. No hot-reload of config (out of scope).
+- **TUI configuration** (official extension API: `pi.registerCommand` + `ctx.ui.select/input/notify`): the `/statusanim` command opens an interactive menu of every option (loop until Done/Esc) or sets one option directly (`/statusanim <key> <value>`, validated per type/range, Tab-completed). It writes through `updateConfig()` in config.ts — a merge into the `statusAnim` section of settings.json that preserves every other key — and tells the user to run `/reload`.
 - `mode: "append"|"replace"` from the old config is **removed** — the FSM supersedes it. `words` always augments defaults.
 
 ## 11. pi events mapping

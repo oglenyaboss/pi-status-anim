@@ -16,7 +16,24 @@ import {
 	onToolStart,
 	startLoop,
 } from "../src/state-machine.ts";
-import { DOT_FRAMES, firstFrameForPhase, STAR_FRAMES, TOOL_FRAMES, framesForPhase } from "../src/frames.ts";
+import type { Phase } from "../src/state-machine.ts";
+import {
+	DOT_FRAMES,
+	firstFrameForPhase,
+	ROBOT_DONE_FRAMES,
+	ROBOT_FACE_HAPPY,
+	ROBOT_FACE_SAD,
+	ROBOT_RESPOND_FRAMES,
+	ROBOT_SLEEP_FRAMES,
+	ROBOT_STATIC_FRAME,
+	ROBOT_THINK_FRAMES,
+	ROBOT_TOOL_FRAMES,
+	ROBOT_WAIT_FRAMES,
+	STAR_FRAMES,
+	TOOL_FRAMES,
+	framesForPhase,
+	robotFramesForPhase,
+} from "../src/frames.ts";
 import { shouldStall, stallIntensity, tierIndex, updateLiveliness } from "../src/stall.ts";
 import { modelEggFor, pickVerb, timeEggFor } from "../src/verbs.ts";
 
@@ -122,6 +139,10 @@ const mid = stepOdometer(0, 150); // gap 150 (<200) → ceil(150*0.15)=23
 check("odometer mid gap uses ceil(0.15·gap)", mid === 23, `got ${mid}`);
 const big = stepOdometer(0, 5000); // gap ≥200 → +50
 check("odometer big gap step is 50", big === 50);
+// Snap-down fix: when target drops (new turn resets responseLength), the
+// odometer must jump down immediately, not freeze at the old high value.
+const snap = stepOdometer(1000, 50);
+check("odometer snaps down when target drops", snap === 50, `got ${snap}`);
 
 console.log("— FSM: verb stability (acceptance §15.1, bug 1) —");
 let m = startLoop({ verb: "Reticulating", source: "generic" });
@@ -143,6 +164,12 @@ check(
 	m.phase === "done" && !m.thinkingActive && m.thinkingEndAt === 2000,
 	`endAt=${m.thinkingEndAt}`,
 );
+// tool_end reverts to `requesting`, not the terminal `done`/`idle` it was
+// called from (the agent starts a new turn after a tool).
+m = onToolStart(m, "bash", { command: "ls" });
+check("tool from done enters tool phase", m.phase === "tool");
+m = onToolEnd(m);
+check("tool end from done → requesting (new turn)", m.phase === "requesting", `phase=${m.phase}`);
 m = onThinkingBlock(m, { verb: "Pondering", source: "thinking" }, 4000);
 check("thinking entry applies thinking verb", m.verb === "Pondering");
 m = onToolStart(m, "read", null);
@@ -157,6 +184,7 @@ console.log("— stall & liveliness (acceptance §15.4) —");
 check("stall triggers after threshold with no activity", shouldStall(13001, 10000, 3000, 0, "thinking"));
 check("stall suppressed by active tool", !shouldStall(13000, 10000, 3000, 1, "tool"));
 check("no stall in done phase", !shouldStall(13000, 10000, 3000, 0, "done"));
+check("no stall in requesting phase (first-byte wait)", !shouldStall(13000, 10000, 3000, 0, "requesting"));
 check("stall disabled when threshold is 0", !shouldStall(13000, 10000, 0, 0, "thinking"));
 const i0 = stallIntensity(0);
 const i2 = stallIntensity(2000);
@@ -179,6 +207,36 @@ check("thinking uses star set", framesForPhase("thinking", true) === STAR_FRAMES
 check("tool uses braille set", framesForPhase("tool", true) === TOOL_FRAMES);
 check("phaseGlyphs off → one set", framesForPhase("thinking", false) === STAR_FRAMES && framesForPhase("requesting", false) === STAR_FRAMES);
 check("firstFrameForPhase works", firstFrameForPhase("thinking", true) === "·");
+
+console.log("— robot avatar frames —");
+const robotSets: Record<string, string[]> = {
+	wait: ROBOT_WAIT_FRAMES,
+	think: ROBOT_THINK_FRAMES,
+	respond: ROBOT_RESPOND_FRAMES,
+	tool: ROBOT_TOOL_FRAMES,
+	sleep: ROBOT_SLEEP_FRAMES,
+	done: ROBOT_DONE_FRAMES,
+	happy: [ROBOT_FACE_HAPPY],
+	sad: [ROBOT_FACE_SAD],
+	static: [ROBOT_STATIC_FRAME],
+};
+for (const [name, frames] of Object.entries(robotSets)) {
+	const widths = new Set(frames.map((f) => displayWidth(f)));
+	check(
+		`robot ${name}: every frame is 5 cells wide`,
+		widths.size === 1 && [...widths][0] === 5,
+		[...widths].join(","),
+	);
+}
+const robotPhases: Phase[] = ["requesting", "thinking", "responding", "tool", "done"];
+check(
+	"robot frames cover every phase",
+	robotPhases.every((p) => robotFramesForPhase(p).frames.length > 0),
+);
+check(
+	"robot sets carry a positive Loader interval",
+	robotPhases.every((p) => robotFramesForPhase(p).intervalMs > 0),
+);
 
 console.log("— theme conversion —");
 const r = ansi256ToRgb(196);

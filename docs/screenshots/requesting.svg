@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="840" height="120" viewBox="0 0 840 120" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#16181d"/>
+      <stop offset="1" stop-color="#101215"/>
+    </linearGradient>
+  </defs>
+  <rect width="840" height="120" fill="url(#bg)" rx="14"/>
+  <text x="32" y="68" font-size="26" fill="#9aa0ab">⠁ Reticulating…</text>
+  <text x="300" y="68" font-size="26" fill="#70757f">↑</text>
+  <text x="336" y="68" font-size="26" fill="#70757f">(escape to interrupt)</text>
+  <text x="420" y="108" font-size="16" fill="#4a4f59">requesting — placeholder</text>
+</svg>

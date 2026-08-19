@@ -112,12 +112,14 @@ export function onToolStart(
 	return next;
 }
 
-/** `tool_execution_end`: drop the tool; revert to the previous phase. */
+/** `tool_execution_end`: drop the tool; revert to the previous phase.
+ * `done`/`idle` are terminal — after a tool the agent starts a new turn (a
+ * new LLM response), so revert to `requesting` rather than a dead state. */
 export function onToolEnd(state: MachineState): MachineState {
 	const next: MachineState = { ...state };
 	next.toolCount = Math.max(0, next.toolCount - 1);
 	if (next.toolCount === 0) {
-		next.phase = next.prevPhase;
+		next.phase = next.prevPhase === "done" || next.prevPhase === "idle" ? "requesting" : next.prevPhase;
 		next.prevPhase = "idle";
 		next.toolName = "";
 		next.toolArgs = null;
