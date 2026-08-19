@@ -1,12 +1,18 @@
 {
   "name": "pi-status-anim",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "Animated working status row for the pi coding agent: phased verbs, glyph animation, token counter, stall feedback, easter eggs.",
+  "keywords": ["pi-package", "pi-coding-agent", "tui"],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/oglenyaboss/pi-status-anim.git"
+  },
   "type": "module",
   "pi": {
     "extensions": [
       "./src/index.ts"
-    ]
+    ],
+    "image": "https://raw.githubusercontent.com/oglenyaboss/pi-status-anim/main/docs/screenshots/thinking.svg"
   },
   "scripts": {
 	"typecheck": "tsc --noEmit",
